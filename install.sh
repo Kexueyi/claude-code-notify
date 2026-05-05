@@ -87,21 +87,20 @@ if [[ "${bark_answer,,}" == "y" || "${bark_answer,,}" == "yes" ]]; then
     if [[ -n "$bark_input" ]]; then
         # Accept full URL (e.g. https://api.day.app/YOUR_KEY) or raw key
         if [[ "$bark_input" == http* ]]; then
-            # Extract server and key from URL: https://server/key/optional...
-            bark_proto_server="${bark_input%%/http*}"  # handle double-https by accident
-            # Strip trailing slashes and extract components
-            cleaned="${bark_input%/}"
-            # Remove protocol prefix
-            without_proto="${cleaned#https://}"
-            without_proto="${without_proto#http://}"
-            # Split into server and key
-            BARK_SERVER="https://${without_proto%%/*}"
-            # The key is the first path segment after the host
-            path_part="${without_proto#*/}"
-            BARK_KEY="${path_part%%/*}"
+            # Use Python for reliable URL parsing
+            BARK_KEY=$(python3 -c "
+import sys, urllib.parse
+url = sys.argv[1].strip().rstrip('/')
+parsed = urllib.parse.urlparse(url)
+print(parsed.path.strip('/').split('/')[0])
+" "$bark_input")
+            # Extract server from URL
+            BARK_SERVER="${bark_input%%//*}//${bark_input#*//}"
+            BARK_SERVER="${BARK_SERVER%%/${BARK_KEY}*}"
         else
             BARK_KEY="$bark_input"
         fi
+        echo "    Parsed key: $BARK_KEY"
     fi
 
     if [[ -n "$BARK_KEY" ]]; then
